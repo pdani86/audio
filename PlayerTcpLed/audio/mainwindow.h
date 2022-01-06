@@ -8,6 +8,8 @@
 #include <QFile>
 #include <QDebug>
 
+#include <QCloseEvent>
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -37,6 +39,8 @@ private slots:
 
     void on_browseBtn_clicked();
 
+    void on_sendTcp_clicked();
+
 private:
     std::unique_ptr<QAudioOutput> audio;
     std::size_t pos = 0;
@@ -46,5 +50,7 @@ private:
 
 private:
     Ui::MainWindow *ui;
+
+    void closeEvent(QCloseEvent *event) override;
 };
 #endif // MAINWINDOW_H

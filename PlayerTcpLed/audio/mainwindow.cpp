@@ -13,6 +13,13 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    //auto devices = QAudioDeviceInfo::availableDevices(QAudio::AudioInput);
+//    auto devices = QAudioDeviceInfo::availableDevices(QAudio::AudioOutput);
+//    qDebug(QString("%1").arg(devices.size()).toLatin1().data());
+//    for(auto& cur : devices) {
+//        qDebug(cur.deviceName().toLatin1().data());
+//    }
+
 }
 
 MainWindow::~MainWindow()
@@ -22,8 +29,17 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::play(const PlayParams& params) {
+void MainWindow::closeEvent(QCloseEvent *event)
+ {
+    stopFlag = true;
+    audio->stop();
+    event->accept();
+ }
 
+void MainWindow::play(const PlayParams& params) {    
+    ui->formLayout_2->setEnabled(false);
+    ui->playBtn->setEnabled(false);
+    ui->stopBtn->setEnabled(true);
     QAudioFormat format;
     int samplePerSec = params.sampleRate;
     format.setSampleRate(samplePerSec);
@@ -36,6 +52,9 @@ void MainWindow::play(const PlayParams& params) {
     QAudioDeviceInfo info(QAudioDeviceInfo::defaultOutputDevice());
     if (!info.isFormatSupported(format)) {
      qWarning() << "Raw audio format not supported by backend, cannot play audio.";
+     ui->formLayout_2->setEnabled(true);
+     ui->playBtn->setEnabled(true);
+     ui->stopBtn->setEnabled(false);
      return;
     }
 
@@ -45,11 +64,14 @@ void MainWindow::play(const PlayParams& params) {
     stopFlag = false;
     pos = 0;
 
+    bool bSendTcp = ui->sendTcp->isChecked();
 
     QTcpSocket socket;
-    socket.connectToHost(ui->tcpHost->text(), ui->tcpPort->value());
-    if(!socket.waitForConnected(3000)) {
-        qDebug("Couldn't connect to host");
+    if(bSendTcp) {
+        socket.connectToHost(ui->tcpHost->text(), ui->tcpPort->value());
+        if(!socket.waitForConnected(3000)) {
+            qDebug("Couldn't connect to host");
+        }
     }
 
     while(pos < buffer.size()) {
@@ -69,7 +91,8 @@ void MainWindow::play(const PlayParams& params) {
         pos += n;
 
         ui->progressBar->setValue(max - min);
-        if(socket.isOpen()) {
+
+        if(bSendTcp && socket.isOpen()) {
             char val = static_cast<char>(max - min);
             socket.write(&val, 1);
         }
@@ -78,6 +101,9 @@ void MainWindow::play(const PlayParams& params) {
         if(stopFlag) break;
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
+    ui->formLayout_2->setEnabled(true);
+    ui->playBtn->setEnabled(true);
+    ui->stopBtn->setEnabled(false);
 }
 
 void MainWindow::on_playBtn_clicked()
@@ -111,4 +137,9 @@ void MainWindow::on_browseBtn_clicked()
     auto files = fd.selectedFiles();
     if(files.size() == 0) return;
     ui->fileName->setText(files[0]);
+}
+
+void MainWindow::on_sendTcp_clicked()
+{
+
 }
